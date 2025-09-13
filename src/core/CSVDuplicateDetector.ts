@@ -85,11 +85,13 @@ export class CSVDuplicateDetector {
   private phase1FilesProcessed = 0;
   private phase2FilesProcessed = 0;
   private filteredDomains: string[] = [];
+  private finalFilteredBasisData: any[] = [];
   // Callbacks
   public onProgress: ((progress: ProcessingProgress) => void) | null = null;
   public onPerformanceUpdate: ((metrics: PerformanceMetrics) => void) | null = null;
   public onResults: ((results: DuplicateResult[]) => void) | null = null;
   public onError: ((error: string) => void) | null = null;
+  public onPhase3Debug: ((message: string) => void) | null = null;
   public onPhase3Debug: ((message: string) => void) | null = null;
 
   // Performance tracking
@@ -627,19 +629,15 @@ export class CSVDuplicateDetector {
 
   private async filterModifiedBasisFile(normalizedDomains: string[]): Promise<number> {
     try {
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug('📄 Step 1: Getting modified basis file data...');
-      }
+      this.onPhase3Debug?.('📄 Step 1: Getting modified basis file data...');
       
       // Get the complete modified basis file data (original + client type columns)
       const originalBasisData = await this.parseBasisFileForExport();
       const modifiedBasisData = this.addClientTypeColumn(originalBasisData);
       
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`📊 Original modified basis file rows: ${modifiedBasisData.length}`);
-        this.onPhase3Debug(`🎯 Domains to filter: ${normalizedDomains.join(', ')}`);
-        this.onPhase3Debug(`📋 Email column being used: "${this.currentColumnMapping!.emailColumn}"`);
-      }
+      this.onPhase3Debug?.(`📊 Original modified basis file rows: ${modifiedBasisData.length}`);
+      this.onPhase3Debug?.(`🎯 Domains to filter: ${normalizedDomains.join(', ')}`);
+      this.onPhase3Debug?.(`📋 Email column being used: "${this.currentColumnMapping!.emailColumn}"`);
       
       // Filter the modified basis data by email domain
       const emailColumn = this.currentColumnMapping!.emailColumn;
@@ -649,9 +647,7 @@ export class CSVDuplicateDetector {
       let debugRowCount = 0;
       const maxDebugRows = 50; // Limit detailed logging to first 50 rows
       
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug('🔍 Step 2: Filtering basis file data by email domain...');
-      }
+      this.onPhase3Debug?.('🔍 Step 2: Filtering basis file data by email domain...');
       
       for (const row of modifiedBasisData) {
         processedCount++;
@@ -662,18 +658,16 @@ export class CSVDuplicateDetector {
           const emailDomain = emailParts.length > 1 ? emailParts[1] : '';
           
           // Show detailed logging for first few rows
-          if (debugRowCount < maxDebugRows && this.onPhase3Debug) {
-            this.onPhase3Debug(`📧 Row ${processedCount}: email="${email}", domain="${emailDomain}"`);
+          if (debugRowCount < maxDebugRows) {
+            this.onPhase3Debug?.(`📧 Row ${processedCount}: email="${email}", domain="${emailDomain}"`);
           }
           
           if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
-            if (this.onPhase3Debug) {
-              this.onPhase3Debug(`🗑️ REMOVING: ${email} (domain: ${emailDomain})`);
-            }
+            this.onPhase3Debug?.(`🗑️ REMOVING: ${email} (domain: ${emailDomain})`);
             removedEmails.push(email);
           } else {
-            if (debugRowCount < maxDebugRows && this.onPhase3Debug) {
-              this.onPhase3Debug(`✅ KEEPING: ${email} (domain: ${emailDomain})`);
+            if (debugRowCount < maxDebugRows) {
+              this.onPhase3Debug?.(`✅ KEEPING: ${email} (domain: ${emailDomain})`);
             }
             filteredBasisData.push(row);
           }
@@ -683,32 +677,31 @@ export class CSVDuplicateDetector {
           }
         } else {
           // Keep rows without valid emails
-          if (debugRowCount < maxDebugRows && this.onPhase3Debug) {
-            this.onPhase3Debug(`⚠️ Row ${processedCount}: No valid email found, keeping row`);
+          if (debugRowCount < maxDebugRows) {
+            this.onPhase3Debug?.(`⚠️ Row ${processedCount}: No valid email found, keeping row`);
           }
           filteredBasisData.push(row);
         }
         
         // Progress updates every 1000 rows
-        if (processedCount % 1000 === 0 && this.onPhase3Debug) {
-          this.onPhase3Debug(`📊 Progress: ${processedCount}/${modifiedBasisData.length} rows processed, ${removedEmails.length} emails removed so far`);
+        if (processedCount % 1000 === 0) {
+          this.onPhase3Debug?.(`📊 Progress: ${processedCount}/${modifiedBasisData.length} rows processed, ${removedEmails.length} emails removed so far`);
         }
       }
       
+      // Store the final filtered data for export
+      this.finalFilteredBasisData = [...filteredBasisData];
+      
       const filteredCount = removedEmails.length;
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`📊 FILTERING COMPLETE: Removed ${filteredCount} emails from basis file`);
-        this.onPhase3Debug(`📊 Remaining basis file rows: ${filteredBasisData.length}`);
-        
-        if (removedEmails.length > 0) {
-          this.onPhase3Debug(`🗑️ Sample removed emails: ${removedEmails.slice(0, 10).join(', ')}${removedEmails.length > 10 ? '...' : ''}`);
-        }
+      this.onPhase3Debug?.(`📊 FILTERING COMPLETE: Removed ${filteredCount} emails from basis file`);
+      this.onPhase3Debug?.(`📊 Remaining basis file rows: ${filteredBasisData.length}`);
+      
+      if (removedEmails.length > 0) {
+        this.onPhase3Debug?.(`🗑️ Sample removed emails: ${removedEmails.slice(0, 10).join(', ')}${removedEmails.length > 10 ? '...' : ''}`);
       }
       
       // Step 3: Rebuild email index from filtered basis data
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug('🏗️ Step 3: Rebuilding email index from filtered basis data...');
-      }
+      this.onPhase3Debug?.('🏗️ Step 3: Rebuilding email index from filtered basis data...');
       this.emailIndex.clear();
       this.basisFileClientTypes.clear();
       this.basisFileClientProspects.clear();
@@ -765,40 +758,32 @@ export class CSVDuplicateDetector {
         }
       }
       
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`✅ Email index rebuilt. Size: ${this.emailIndex.size}`);
-      }
+      this.onPhase3Debug?.(`✅ Email index rebuilt. Size: ${this.emailIndex.size}`);
       
       // Step 4: Filter duplicates to maintain consistency
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug('🔍 Step 4: Filtering duplicates to maintain consistency...');
-      }
+      this.onPhase3Debug?.('🔍 Step 4: Filtering duplicates to maintain consistency...');
       const originalDuplicatesCount = this.allDuplicates.length;
       
       this.allDuplicates = this.allDuplicates.filter(duplicate => {
         // Keep duplicates only if their email still exists in the filtered basis
         const keepDuplicate = this.emailIndex.has(duplicate.email);
         
-        if (!keepDuplicate && this.onPhase3Debug) {
-          this.onPhase3Debug(`🗑️ Removing duplicate (no longer in basis): ${duplicate.email}`);
+        if (!keepDuplicate) {
+          this.onPhase3Debug?.(`🗑️ Removing duplicate (no longer in basis): ${duplicate.email}`);
         }
         
         return keepDuplicate;
       });
       
       const duplicatesRemoved = originalDuplicatesCount - this.allDuplicates.length;
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`📊 Removed ${duplicatesRemoved} duplicates (no longer in filtered basis)`);
-      }
+      this.onPhase3Debug?.(`📊 Removed ${duplicatesRemoved} duplicates (no longer in filtered basis)`);
       
       // Update phase 3 count
       this.phase3FilteredCount = filteredCount;
       
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesRemoved} duplicates`);
-        this.onPhase3Debug(`📊 Final duplicates count: ${this.allDuplicates.length}`);
-        this.onPhase3Debug(`📊 Final email index size: ${this.emailIndex.size}`);
-      }
+      this.onPhase3Debug?.(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesRemoved} duplicates`);
+      this.onPhase3Debug?.(`📊 Final duplicates count: ${this.allDuplicates.length}`);
+      this.onPhase3Debug?.(`📊 Final email index size: ${this.emailIndex.size}`);
       
       // Emit updated results
       if (this.onResults) {
@@ -808,9 +793,7 @@ export class CSVDuplicateDetector {
       return filteredCount;
       
     } catch (error) {
-      if (this.onPhase3Debug) {
-        this.onPhase3Debug(`❌ Error in Phase 3 filtering: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      this.onPhase3Debug?.(`❌ Error in Phase 3 filtering: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Phase 3 filtering failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
@@ -865,6 +848,33 @@ export class CSVDuplicateDetector {
     } catch (error) {
       console.error('❌ Export failed:', error);
       throw new Error('Failed to export modified basis file: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }
+
+  public async exportFinalModifiedBasisFile(): Promise<void> {
+    if (this.finalFilteredBasisData.length === 0) {
+      throw new Error('No final filtered basis data available for export. Please complete Phase 3 first.');
+    }
+    
+    try {
+      console.log('📤 Starting export of final modified basis file...');
+      
+      // Convert filtered data to CSV format
+      const csvData = this.convertModifiedDataToCSV(this.finalFilteredBasisData);
+      
+      // Compress with gzip
+      const compressed = pako.gzip(csvData);
+      
+      // Create blob and download
+      const blob = new Blob([compressed], { type: 'application/gzip' });
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      saveAs(blob, `final_contacts_rows_filtered_${timestamp}.csv.gz`);
+      
+      console.log('✅ Final modified basis file exported successfully');
+      
+    } catch (error) {
+      console.error('❌ Final export failed:', error);
+      throw new Error('Failed to export final modified basis file: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
   

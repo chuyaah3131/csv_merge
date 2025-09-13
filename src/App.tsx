@@ -50,6 +50,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const [phase3DebugMessages, setPhase3DebugMessages] = useState<string[]>([]);
+  const [phase3DebugMessages, setPhase3DebugMessages] = useState<string[]>([]);
   
   const detectorRef = useRef<CSVDuplicateDetector | null>(null);
 
@@ -73,6 +74,10 @@ function App() {
       
       detectorRef.current.onError = (errorMessage) => {
         setError(errorMessage);
+      };
+      
+      detectorRef.current.onPhase3Debug = (message) => {
+        setPhase3DebugMessages(prev => [...prev, message]);
       };
       
       detectorRef.current.onPhase3Debug = (message) => {
@@ -143,6 +148,7 @@ function App() {
     setCurrentAppPhase('processing_phase3');
     setError(null);
     setPhase3DebugMessages([]); // Clear previous debug messages
+    setPhase3DebugMessages([]); // Clear previous debug messages
     
     try {
       // Define domains to filter
@@ -184,6 +190,16 @@ function App() {
       await detectorRef.current.exportModifiedBasisFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download modified basis file');
+    }
+  }, []);
+
+  const handleDownloadFinalModifiedBasisFile = useCallback(async () => {
+    if (!detectorRef.current) return;
+    
+    try {
+      await detectorRef.current.exportFinalModifiedBasisFile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download final modified basis file');
     }
   }, []);
 
