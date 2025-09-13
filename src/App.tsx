@@ -125,8 +125,7 @@ function App() {
     try {
       await detectorRef.current.processFiles(phase2BasisFile, phase2ComparisonFiles, columnMapping);
       
-      // Automatically start Phase 3 after Phase 2 completion
-      await handleStartPhase3Processing();
+      setCurrentAppPhase('phase2_done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setCurrentAppPhase('setup_phase2');
@@ -383,12 +382,21 @@ function App() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Phase 2 Results</h2>
-                <button
-                  onClick={handleDownloadModifiedBasisFile}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Download Modified Basis File
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDownloadModifiedBasisFile}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Download Modified Basis File
+                  </button>
+                  <button
+                    onClick={handleStartPhase3Processing}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Phase 3
+                  </button>
+                </div>
               </div>
               <ResultsTable results={results} />
             </div>
