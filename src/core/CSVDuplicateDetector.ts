@@ -563,18 +563,9 @@ export class CSVDuplicateDetector {
     
     try {
       console.log('📤 Starting export of modified basis file...');
-      console.log('📊 Client types collected:', this.basisFileClientTypes.size);
       
-      // Parse the original basis file
-      const basisData = await this.parseBasisFileForExport();
-      console.log('📄 Parsed basis file, rows:', basisData.length);
-      
-      // Add client_type_vip_status column to each row
-      const modifiedData = this.addClientTypeColumn(basisData);
-      console.log('✅ Added client type column to all rows');
-      
-      // Convert to CSV format
-      const csvData = this.convertModifiedDataToCSV(modifiedData);
+      // Get the modified CSV content
+      const csvData = await this._getModifiedBasisFileContent();
       
       // Compress with gzip
       const compressed = pako.gzip(csvData);
@@ -592,6 +583,49 @@ export class CSVDuplicateDetector {
     }
   }
   
+  private async _getModifiedBasisFileContent(): Promise<string> {
+    console.log('📊 Client types collected:', this.basisFileClientTypes.size);
+    
+    // Parse the original basis file
+    const basisData = await this.parseBasisFileForExport();
+    console.log('📄 Parsed basis file, rows:', basisData.length);
+    
+    // Add client_type_vip_status column to each row
+    const modifiedData = this.addClientTypeColumn(basisData);
+    console.log('✅ Added client type column to all rows');
+    
+    // Convert to CSV format
+    return this.convertModifiedDataToCSV(modifiedData);
+  }
+  
+  public async getModifiedBasisFileForPhase2(): Promise<File | null> {
+    if (!this.originalBasisFile || !this.currentColumnMapping) {
+      console.warn('⚠️ No basis file or column mapping available for Phase 2');
+      return null;
+    }
+    
+    try {
+      console.log('🔄 Creating modified basis file for Phase 2...');
+      
+      // Get the modified CSV content
+      const csvData = await this._getModifiedBasisFileContent();
+      
+      // Create a new File object from the CSV content
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const fileName = `contacts_rows_with_client_types_${timestamp}.csv`;
+      
+      const modifiedFile = new File([blob], fileName, { type: 'text/csv' });
+      console.log('✅ Modified basis file created for Phase 2:', fileName);
+      
+      return modifiedFile;
+      
+    } catch (error) {
+      console.error('❌ Failed to create modified basis file for Phase 2:', error);
+      return null;
+    }
+  }
+  
   private async parseBasisFileForExport(): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const results: any[] = [];
@@ -603,10 +637,10 @@ export class CSVDuplicateDetector {
           results.push(...chunk.data);
         },
         complete: () => {
-          console.log('✅ CSV parsing complete for:', fileToProcess.name, 'Total rows parsed:', totalRowsParsed);
+          resolve(results);
         },
         error: (error) => {
-          console.error('❌ CSV parsing error for:', fileToProcess.name, error);
+          reject(error);
         }
       });
     });

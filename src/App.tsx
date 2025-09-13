@@ -20,6 +20,9 @@ function App() {
   const [phase2BasisFile, setPhase2BasisFile] = useState<File | null>(null);
   const [phase2ComparisonFiles, setPhase2ComparisonFiles] = useState<File[]>([]);
   
+  // Modified basis file from Phase 1
+  const [modifiedPhase1BasisFile, setModifiedPhase1BasisFile] = useState<File | null>(null);
+  
   // Column mapping
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
     emailColumn: 'email',
@@ -81,6 +84,13 @@ function App() {
     try {
       await detectorRef.current.processFiles(phase1BasisFile, phase1ComparisonFiles, columnMapping);
       setCurrentAppPhase('phase1_done');
+      
+      // Generate modified basis file for Phase 2
+      const modifiedFile = await detectorRef.current.getModifiedBasisFileForPhase2();
+      if (modifiedFile) {
+        setModifiedPhase1BasisFile(modifiedFile);
+        console.log('✅ Modified basis file prepared for Phase 2:', modifiedFile.name);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setCurrentAppPhase('initial');
@@ -90,8 +100,15 @@ function App() {
   // Phase 2 handlers
   const handleStartPhase2Setup = useCallback(() => {
     setResults([]);
+    
+    // Automatically use the modified basis file from Phase 1 if available
+    if (modifiedPhase1BasisFile) {
+      setPhase2BasisFile(modifiedPhase1BasisFile);
+      console.log('🔄 Using modified basis file from Phase 1 for Phase 2');
+    }
+    
     setCurrentAppPhase('setup_phase2');
-  }, []);
+  }, [modifiedPhase1BasisFile]);
 
   const handleStartPhase2Processing = useCallback(async () => {
     if (!phase2BasisFile || phase2ComparisonFiles.length === 0 || !detectorRef.current) return;
@@ -108,6 +125,16 @@ function App() {
       setCurrentAppPhase('setup_phase2');
     }
   }, [phase2BasisFile, phase2ComparisonFiles, columnMapping]);
+
+  const handleDownloadModifiedBasisFile = useCallback(async () => {
+    if (!detectorRef.current) return;
+    
+    try {
+      await detectorRef.current.exportModifiedBasisFile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download modified basis file');
+    }
+  }, []);
 
   const canStartPhase1 = phase1BasisFile && phase1ComparisonFiles.length > 0;
   const canStartPhase2 = phase2BasisFile && phase2ComparisonFiles.length > 0;
@@ -221,13 +248,21 @@ function App() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Phase 1 Results</h2>
-                <button
-                  onClick={handleStartPhase2Setup}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Start Phase 2
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDownloadModifiedBasisFile}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Download Modified Basis File
+                  </button>
+                  <button
+                    onClick={handleStartPhase2Setup}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Start Phase 2
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </button>
+                </div>
               </div>
               <ResultsTable results={results} />
             </div>
