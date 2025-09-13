@@ -616,76 +616,151 @@ export class CSVDuplicateDetector {
   public applyPhase3Filtering(domainsToFilter: string[]): number {
     console.log('🗑️ Starting Phase 3 filtering for domains:', domainsToFilter);
     this.filteredDomains = [...domainsToFilter];
-    let filteredCount = 0;
 
     // Normalize domains for comparison
     const normalizedDomains = domainsToFilter.map(domain => domain.toLowerCase().trim());
     console.log('🔍 Normalized domains for filtering:', normalizedDomains);
 
-    // Filter email index
-    const emailsToRemove: string[] = [];
-    console.log('📊 Starting email index filtering. Total emails in index:', this.emailIndex.size);
-    
-    for (const [email, records] of this.emailIndex.entries()) {
-      console.log('📧 Processing email from index:', email);
-      const emailDomain = email.split('@')[1];
-      console.log('🌐 Extracted domain:', emailDomain);
+    return this.filterModifiedBasisFile(normalizedDomains);
+  }
+
+  private async filterModifiedBasisFile(normalizedDomains: string[]): Promise<number> {
+    try {
+      console.log('📄 Step 1: Getting modified basis file data...');
       
-      if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
-        console.log('✅ Domain match found! Email will be removed:', email);
-        emailsToRemove.push(email);
-        filteredCount++;
-      } else {
-        console.log('❌ No domain match for email:', email, 'domain:', emailDomain, 'lowercase:', emailDomain?.toLowerCase());
-        if (emailDomain && ['ccm.com', 'myccmortgage.com', 'change.com', 'commercemtg.com', 'commercehomemortgage.com'].includes(emailDomain.toLowerCase())) {
-          console.log('🚨 UNEXPECTED: Email should have been filtered but wasn\'t:', email, 'domain:', emailDomain);
+      // Get the complete modified basis file data (original + client type columns)
+      const originalBasisData = await this.parseBasisFileForExport();
+      const modifiedBasisData = this.addClientTypeColumn(originalBasisData);
+      
+      console.log('📊 Original modified basis file rows:', modifiedBasisData.length);
+      
+      // Filter the modified basis data by email domain
+      const emailColumn = this.currentColumnMapping!.emailColumn;
+      const filteredBasisData: any[] = [];
+      const removedEmails: string[] = [];
+      
+      console.log('🔍 Step 2: Filtering basis file data by email domain...');
+      
+      for (const row of modifiedBasisData) {
+        const email = this.normalizeEmail(row[emailColumn]);
+        
+        if (email) {
+          const emailDomain = email.split('@')[1];
+          console.log('📧 Processing basis email:', email, 'domain:', emailDomain);
+          
+          if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
+            console.log('🗑️ Removing basis email:', email, 'domain:', emailDomain);
+            removedEmails.push(email);
+          } else {
+            console.log('✅ Keeping basis email:', email);
+            filteredBasisData.push(row);
+          }
+        } else {
+          // Keep rows without valid emails
+          filteredBasisData.push(row);
         }
       }
-    }
-
-    console.log('📝 Emails marked for removal:', emailsToRemove.length, 'emails:', emailsToRemove.slice(0, 10));
-
-    // Remove filtered emails from all data structures
-    for (const email of emailsToRemove) {
-      this.emailIndex.delete(email);
-      this.basisFileClientTypes.delete(email);
-      this.basisFileClientProspects.delete(email);
-    }
-
-    // Filter duplicates array
-    const originalDuplicatesCount = this.allDuplicates.length;
-    console.log('📊 Starting duplicates array filtering. Original count:', originalDuplicatesCount);
-    
-    this.allDuplicates = this.allDuplicates.filter(duplicate => {
-      console.log('📧 Processing duplicate email:', duplicate.email);
-      const emailDomain = duplicate.email.split('@')[1];
-      console.log('🌐 Extracted domain from duplicate:', emailDomain);
       
-      const shouldKeep = !(emailDomain && normalizedDomains.includes(emailDomain.toLowerCase()));
-      console.log('🔍 Should keep duplicate?', shouldKeep, 'for email:', duplicate.email);
+      const filteredCount = removedEmails.length;
+      console.log('📊 Removed', filteredCount, 'emails from basis file');
+      console.log('📊 Remaining basis file rows:', filteredBasisData.length);
       
-      if (!shouldKeep) {
-        console.log('🗑️ Removing duplicate:', duplicate.email, 'domain:', emailDomain);
-      } else if (emailDomain && ['ccm.com', 'myccmortgage.com', 'change.com', 'commercemtg.com', 'commercehomemortgage.com'].includes(emailDomain.toLowerCase())) {
-        console.log('🚨 UNEXPECTED: Duplicate should have been removed but wasn\'t:', duplicate.email, 'domain:', emailDomain);
+      // Step 3: Rebuild email index from filtered basis data
+      console.log('🏗️ Step 3: Rebuilding email index from filtered basis data...');
+      this.emailIndex.clear();
+      this.basisFileClientTypes.clear();
+      this.basisFileClientProspects.clear();
+      
+      for (let i = 0; i < filteredBasisData.length; i++) {
+        const row = filteredBasisData[i];
+        const email = this.normalizeEmail(row[emailColumn]);
+        
+        if (email) {
+          let firstName, lastName;
+          
+          if (this.currentColumnMapping!.splitNameColumn && 
+              this.currentColumnMapping!.firstNameColumn === this.currentColumnMapping!.lastNameColumn) {
+            // Split the combined name column
+            const fullName = (row[this.currentColumnMapping!.firstNameColumn] || '').trim();
+            const spaceIndex = fullName.indexOf(' ');
+            
+            if (spaceIndex > 0) {
+              firstName = fullName.substring(0, spaceIndex);
+              lastName = fullName.substring(spaceIndex + 1);
+            } else {
+              firstName = fullName;
+              lastName = '';
+            }
+          } else {
+            // Use separate columns
+            firstName = row[this.currentColumnMapping!.firstNameColumn] || '';
+            lastName = row[this.currentColumnMapping!.lastNameColumn] || '';
+          }
+          
+          if (!this.emailIndex.has(email)) {
+            this.emailIndex.set(email, []);
+          }
+          
+          this.emailIndex.get(email)!.push({
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            sourceFile: this.originalBasisFile!.name,
+            rowIndex: i,
+            originalRow: row
+          });
+          
+          // Store client types if available
+          if (row.client_type_vip_status) {
+            this.basisFileClientTypes.set(email, row.client_type_vip_status);
+          }
+          if (row.client_type_prospects) {
+            this.basisFileClientProspects.set(email, row.client_type_prospects);
+          }
+          
+          // Add to bloom filter
+          this.bloomFilter.add(email);
+        }
       }
       
-      return !(emailDomain && normalizedDomains.includes(emailDomain.toLowerCase()));
-    });
-
-    const duplicatesFiltered = originalDuplicatesCount - this.allDuplicates.length;
-    this.phase3FilteredCount = filteredCount;
-
-    console.log(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesFiltered} duplicates`);
-    console.log('📊 Final duplicates count:', this.allDuplicates.length);
-    console.log('📊 Final email index size:', this.emailIndex.size);
-    
-    // Emit updated results
-    if (this.onResults) {
-      this.onResults([...this.allDuplicates]);
+      console.log('✅ Email index rebuilt. Size:', this.emailIndex.size);
+      
+      // Step 4: Filter duplicates to maintain consistency
+      console.log('🔍 Step 4: Filtering duplicates to maintain consistency...');
+      const originalDuplicatesCount = this.allDuplicates.length;
+      
+      this.allDuplicates = this.allDuplicates.filter(duplicate => {
+        // Keep duplicates only if their email still exists in the filtered basis
+        const keepDuplicate = this.emailIndex.has(duplicate.email);
+        
+        if (!keepDuplicate) {
+          console.log('🗑️ Removing duplicate (no longer in basis):', duplicate.email);
+        }
+        
+        return keepDuplicate;
+      });
+      
+      const duplicatesRemoved = originalDuplicatesCount - this.allDuplicates.length;
+      console.log('📊 Removed', duplicatesRemoved, 'duplicates (no longer in filtered basis)');
+      
+      // Update phase 3 count
+      this.phase3FilteredCount = filteredCount;
+      
+      console.log(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesRemoved} duplicates`);
+      console.log('📊 Final duplicates count:', this.allDuplicates.length);
+      console.log('📊 Final email index size:', this.emailIndex.size);
+      
+      // Emit updated results
+      if (this.onResults) {
+        this.onResults([...this.allDuplicates]);
+      }
+      
+      return filteredCount;
+      
+    } catch (error) {
+      console.error('❌ Error in Phase 3 filtering:', error);
+      throw new Error('Phase 3 filtering failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
-
-    return filteredCount;
   }
 
   public getCurrentDuplicates(): DuplicateResult[] {
