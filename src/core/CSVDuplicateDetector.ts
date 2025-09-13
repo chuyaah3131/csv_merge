@@ -86,7 +86,6 @@ export class CSVDuplicateDetector {
   private phase2FilesProcessed = 0;
   private filteredDomains: string[] = [];
   private phase3LogMessages: string[] = [];
-  private phase3LogMessages: string[] = [];
   // Callbacks
   public onProgress: ((progress: ProcessingProgress) => void) | null = null;
   public onPerformanceUpdate: ((metrics: PerformanceMetrics) => void) | null = null;
@@ -954,39 +953,6 @@ export class CSVDuplicateDetector {
         client_type_prospects: clientProspects
       };
     });
-  }
-  
-  public async exportPhase3Logs(): Promise<void> {
-    try {
-      if (this.phase3LogMessages.length === 0) {
-        throw new Error('No Phase 3 logs available. Please run Phase 3 first.');
-      }
-      
-      console.log('📤 Starting export of Phase 3 logs...');
-      
-      // Create log content with timestamp header
-      const timestamp = new Date().toISOString();
-      const logContent = [
-        `Phase 3 Processing Log - Generated: ${timestamp}`,
-        '='.repeat(60),
-        '',
-        ...this.phase3LogMessages,
-        '',
-        '='.repeat(60),
-        `Log completed at: ${new Date().toISOString()}`
-      ].join('\n');
-      
-      // Create blob and download
-      const blob = new Blob([logContent], { type: 'text/plain' });
-      const logTimestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      saveAs(blob, `phase3_processing_log_${logTimestamp}.txt`);
-      
-      console.log('✅ Phase 3 logs exported successfully');
-      
-    } catch (error) {
-      console.error('❌ Phase 3 log export failed:', error);
-      throw new Error('Failed to export Phase 3 logs: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    }
   }
   
   public async exportPhase3Logs(): Promise<void> {
