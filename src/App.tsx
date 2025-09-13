@@ -49,6 +49,7 @@ function App() {
   const [results, setResults] = useState<DuplicateResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
+  const [phase3DebugMessages, setPhase3DebugMessages] = useState<string[]>([]);
   
   const detectorRef = useRef<CSVDuplicateDetector | null>(null);
 
@@ -72,6 +73,10 @@ function App() {
       
       detectorRef.current.onError = (errorMessage) => {
         setError(errorMessage);
+      };
+      
+      detectorRef.current.onPhase3Debug = (message) => {
+        setPhase3DebugMessages(prev => [...prev, message]);
       };
     }
   }, []);
@@ -137,6 +142,7 @@ function App() {
     
     setCurrentAppPhase('processing_phase3');
     setError(null);
+    setPhase3DebugMessages([]); // Clear previous debug messages
     
     try {
       // Define domains to filter
@@ -409,12 +415,40 @@ function App() {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Phase 3: Email Domain Filtering</h2>
-              <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Filtering email domains...</p>
+              
+              <div className="mb-6">
+                <div className="flex items-center justify-center py-4">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+                    <p className="text-gray-600">Filtering email domains...</p>
+                  </div>
                 </div>
               </div>
+              
+              {/* Debug Messages */}
+              {phase3DebugMessages.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Processing Details</h3>
+                  <div className="bg-white rounded border border-gray-300 p-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-1 font-mono text-sm">
+                      {phase3DebugMessages.map((message, index) => (
+                        <div 
+                          key={index} 
+                          className={`${
+                            message.includes('🗑️ REMOVING') ? 'text-red-600 font-semibold' :
+                            message.includes('✅ KEEPING') ? 'text-green-600' :
+                            message.includes('📊') ? 'text-blue-600 font-medium' :
+                            message.includes('❌') ? 'text-red-600 font-semibold' :
+                            'text-gray-700'
+                          }`}
+                        >
+                          {message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
