@@ -620,16 +620,30 @@ export class CSVDuplicateDetector {
 
     // Normalize domains for comparison
     const normalizedDomains = domainsToFilter.map(domain => domain.toLowerCase().trim());
+    console.log('🔍 Normalized domains for filtering:', normalizedDomains);
 
     // Filter email index
     const emailsToRemove: string[] = [];
+    console.log('📊 Starting email index filtering. Total emails in index:', this.emailIndex.size);
+    
     for (const [email, records] of this.emailIndex.entries()) {
+      console.log('📧 Processing email from index:', email);
       const emailDomain = email.split('@')[1];
+      console.log('🌐 Extracted domain:', emailDomain);
+      
       if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
+        console.log('✅ Domain match found! Email will be removed:', email);
         emailsToRemove.push(email);
         filteredCount++;
+      } else {
+        console.log('❌ No domain match for email:', email, 'domain:', emailDomain, 'lowercase:', emailDomain?.toLowerCase());
+        if (emailDomain && ['ccm.com', 'myccmortgage.com', 'change.com', 'commercemtg.com', 'commercehomemortgage.com'].includes(emailDomain.toLowerCase())) {
+          console.log('🚨 UNEXPECTED: Email should have been filtered but wasn\'t:', email, 'domain:', emailDomain);
+        }
       }
     }
+
+    console.log('📝 Emails marked for removal:', emailsToRemove.length, 'emails:', emailsToRemove.slice(0, 10));
 
     // Remove filtered emails from all data structures
     for (const email of emailsToRemove) {
@@ -640,8 +654,22 @@ export class CSVDuplicateDetector {
 
     // Filter duplicates array
     const originalDuplicatesCount = this.allDuplicates.length;
+    console.log('📊 Starting duplicates array filtering. Original count:', originalDuplicatesCount);
+    
     this.allDuplicates = this.allDuplicates.filter(duplicate => {
+      console.log('📧 Processing duplicate email:', duplicate.email);
       const emailDomain = duplicate.email.split('@')[1];
+      console.log('🌐 Extracted domain from duplicate:', emailDomain);
+      
+      const shouldKeep = !(emailDomain && normalizedDomains.includes(emailDomain.toLowerCase()));
+      console.log('🔍 Should keep duplicate?', shouldKeep, 'for email:', duplicate.email);
+      
+      if (!shouldKeep) {
+        console.log('🗑️ Removing duplicate:', duplicate.email, 'domain:', emailDomain);
+      } else if (emailDomain && ['ccm.com', 'myccmortgage.com', 'change.com', 'commercemtg.com', 'commercehomemortgage.com'].includes(emailDomain.toLowerCase())) {
+        console.log('🚨 UNEXPECTED: Duplicate should have been removed but wasn\'t:', duplicate.email, 'domain:', emailDomain);
+      }
+      
       return !(emailDomain && normalizedDomains.includes(emailDomain.toLowerCase()));
     });
 
@@ -649,6 +677,8 @@ export class CSVDuplicateDetector {
     this.phase3FilteredCount = filteredCount;
 
     console.log(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesFiltered} duplicates`);
+    console.log('📊 Final duplicates count:', this.allDuplicates.length);
+    console.log('📊 Final email index size:', this.emailIndex.size);
     
     // Emit updated results
     if (this.onResults) {
