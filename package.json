@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "caniuse-lite": "^1.0.30001741",
     "comlink": "^4.4.2",
     "dexie": "^4.2.0",
     "lucide-react": "^0.344.0",
