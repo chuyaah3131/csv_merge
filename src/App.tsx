@@ -605,6 +605,31 @@ function App() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Duplicate Results</h3>
               <ResultsTable results={results} />
             </div>
+            
+            {/* Debug Messages for Phase 3 Done */}
+            {phase3DebugMessages.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Phase 3 Processing Log</h3>
+                <div className="bg-gray-50 rounded border border-gray-300 p-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-1 font-mono text-sm">
+                    {phase3DebugMessages.map((message, index) => (
+                      <div 
+                        key={index} 
+                        className={`${
+                          message.includes('🗑️ REMOVING') ? 'text-red-600 font-semibold' :
+                          message.includes('✅ KEEPING') ? 'text-green-600' :
+                          message.includes('📊') ? 'text-blue-600 font-medium' :
+                          message.includes('❌') ? 'text-red-600 font-semibold' :
+                          'text-gray-700'
+                        }`}
+                      >
+                        {message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {performanceMetrics && <PerformanceMonitor metrics={performanceMetrics} />}
           </div>
