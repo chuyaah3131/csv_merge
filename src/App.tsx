@@ -151,7 +151,7 @@ function App() {
       console.log('🗑️ Starting Phase 3 filtering for domains:', domainsToFilter);
       
       // Apply filtering
-      const filteredCount = detectorRef.current.applyPhase3Filtering(domainsToFilter);
+      const filteredCount = await detectorRef.current.applyPhase3Filtering(domainsToFilter);
       
       // Get updated results
       const updatedResults = detectorRef.current.getCurrentDuplicates();
