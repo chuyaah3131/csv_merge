@@ -315,7 +315,15 @@ function App() {
         {currentAppPhase === 'phase2_done' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Phase 2 Results</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Phase 2 Results</h2>
+                <button
+                  onClick={handleDownloadModifiedBasisFile}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Download Modified Basis File
+                </button>
+              </div>
               <ResultsTable results={results} />
             </div>
             {performanceMetrics && <PerformanceMonitor metrics={performanceMetrics} />}
