@@ -396,6 +396,174 @@ function App() {
           </div>
         )}
 
+        {/* Phase 3: Processing */}
+        {currentAppPhase === 'processing_phase3' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Phase 3: Email Domain Filtering</h2>
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Filtering email domains...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 3: Final Report */}
+        {currentAppPhase === 'phase3_done' && phase3Report && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Final Processing Report</h2>
+                <button
+                  onClick={handleDownloadModifiedBasisFile}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Download Final Basis File
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {phase3Report.phase1.initialBasisEmails.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-blue-800">Initial Basis Emails</div>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {phase3Report.final.totalDuplicatesFound.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-green-800">Total Duplicates Found</div>
+                </div>
+                
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <div className="text-2xl font-bold text-red-600">
+                    {phase3Report.phase3.emailsFiltered.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-red-800">Emails Filtered</div>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {phase3Report.final.finalBasisEmails.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-purple-800">Final Basis Emails</div>
+                </div>
+              </div>
+
+              {/* Phase Details */}
+              <div className="space-y-6">
+                {/* Phase 1 Details */}
+                <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-4">Phase 1: Contact Deduplication</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {phase3Report.phase1.initialBasisEmails.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-blue-600">Initial Basis Emails</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {phase3Report.phase1.duplicatesFound.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-blue-600">Duplicates Found</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {phase3Report.phase1.filesProcessed}
+                      </div>
+                      <div className="text-sm text-blue-600">Files Processed</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phase 2 Details */}
+                <div className="bg-green-50 rounded-lg p-6 border border-green-200">
+                  <h3 className="text-lg font-semibold text-green-900 mb-4">Phase 2: Jungo Contact Integration</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold text-green-700">
+                        {phase3Report.phase2.duplicatesFound.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-green-600">Additional Duplicates Found</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-700">
+                        {phase3Report.phase2.filesProcessed}
+                      </div>
+                      <div className="text-sm text-green-600">Files Processed</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phase 3 Details */}
+                <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+                  <h3 className="text-lg font-semibold text-red-900 mb-4">Phase 3: Email Domain Filtering</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold text-red-700">
+                        {phase3Report.phase3.emailsFiltered.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-red-600">Emails Filtered</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-red-600 mb-2">Filtered Domains:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {phase3Report.phase3.domainsFiltered.map((domain: string, index: number) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200"
+                          >
+                            {domain}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Summary */}
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-700">
+                        {phase3Report.final.totalDuplicatesFound.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Duplicates Found</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-700">
+                        {phase3Report.final.finalBasisEmails.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-600">Final Basis Emails</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-700">
+                        {phase3Report.final.totalFilesProcessed}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Files Processed</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Final Results Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Duplicate Results</h3>
+              <ResultsTable results={results} />
+            </div>
+
+            {performanceMetrics && <PerformanceMonitor metrics={performanceMetrics} />}
+          </div>
+        )}
         {/* Error Display */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
