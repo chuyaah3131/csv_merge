@@ -80,6 +80,7 @@ function App() {
   const handleStartProcessing = useCallback(async () => {
     if (!phase1BasisFile || phase1ComparisonFiles.length === 0 || !detectorRef.current) return;
     
+    detectorRef.current.setPhase('phase1');
     setCurrentAppPhase('processing_phase1');
     setError(null);
     setResults([]);
