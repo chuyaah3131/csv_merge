@@ -17,7 +17,7 @@ interface ResultsTableProps {
   results: DuplicateResult[];
 }
 
-const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
+export const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<keyof DuplicateResult>('confidence');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -350,5 +350,3 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results }) => {
     </div>
   );
 };
-
-export default ResultsTable;

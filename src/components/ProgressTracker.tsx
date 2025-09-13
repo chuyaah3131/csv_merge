@@ -15,7 +15,7 @@ interface ProgressTrackerProps {
   state: ProcessingState;
 }
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({ state }) => {
+export const ProgressTracker: React.FC<ProgressTrackerProps> = ({ state }) => {
   const formatTime = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
@@ -118,5 +118,3 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ state }) => {
     </div>
   );
 };
-
-export default ProgressTracker;

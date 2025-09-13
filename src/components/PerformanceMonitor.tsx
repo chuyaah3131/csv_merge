@@ -12,7 +12,7 @@ interface PerformanceMonitorProps {
   metrics: PerformanceMetrics;
 }
 
-const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ metrics }) => {
+export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ metrics }) => {
   const formatTime = (milliseconds: number) => {
     if (milliseconds < 1000) return `${milliseconds}ms`;
     const seconds = Math.floor(milliseconds / 1000);
@@ -132,5 +132,3 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ metrics }) => {
     </div>
   );
 };
-
-export default PerformanceMonitor;

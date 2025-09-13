@@ -41,7 +41,7 @@ export interface PerformanceMetrics {
   totalProcessingTime: number;
 }
 
-class CSVDuplicateDetector {
+export class CSVDuplicateDetector {
   private workerPool: WorkerPool;
   private emailIndex: Map<string, any[]> = new Map();
   private bloomFilter: BloomFilter;
@@ -696,5 +696,3 @@ class CSVDuplicateDetector {
     this.cache.clear();
   }
 }
-
-export default CSVDuplicateDetector;
