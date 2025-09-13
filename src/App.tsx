@@ -6,7 +6,7 @@ import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { CSVDuplicateDetector, DuplicateResult, ProcessingState, PerformanceMetrics, ColumnMapping } from './core/CSVDuplicateDetector';
 import { Play, CheckCircle, ArrowRight } from 'lucide-react';
 
-type AppPhase = 'initial' | 'processing_phase1' | 'phase1_done' | 'setup_phase2' | 'processing_phase2' | 'phase2_done';
+type AppPhase = 'initial' | 'processing_phase1' | 'phase1_done' | 'setup_phase2' | 'processing_phase2' | 'phase2_done' | 'processing_phase3' | 'phase3_done';
 
 function App() {
   // Phase management
@@ -22,6 +22,9 @@ function App() {
   
   // Modified basis file from Phase 1
   const [modifiedPhase1BasisFile, setModifiedPhase1BasisFile] = useState<File | null>(null);
+  
+  // Phase 3 report
+  const [phase3Report, setPhase3Report] = useState<any>(null);
   
   // Column mapping
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
@@ -113,18 +116,60 @@ function App() {
   const handleStartPhase2Processing = useCallback(async () => {
     if (!phase2BasisFile || phase2ComparisonFiles.length === 0 || !detectorRef.current) return;
     
+    detectorRef.current.setPhase('phase2');
     setCurrentAppPhase('processing_phase2');
     setError(null);
     setResults([]);
     
     try {
       await detectorRef.current.processFiles(phase2BasisFile, phase2ComparisonFiles, columnMapping);
-      setCurrentAppPhase('phase2_done');
+      
+      // Automatically start Phase 3 after Phase 2 completion
+      await handleStartPhase3Processing();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setCurrentAppPhase('setup_phase2');
     }
   }, [phase2BasisFile, phase2ComparisonFiles, columnMapping]);
+
+  const handleStartPhase3Processing = useCallback(async () => {
+    if (!detectorRef.current) return;
+    
+    setCurrentAppPhase('processing_phase3');
+    setError(null);
+    
+    try {
+      // Define domains to filter
+      const domainsToFilter = [
+        'ccm.com',
+        'myccmortgage.com',
+        'change.com',
+        'commercemtg.com',
+        'commercehomemortgage.com'
+      ];
+      
+      console.log('🗑️ Starting Phase 3 filtering for domains:', domainsToFilter);
+      
+      // Apply filtering
+      const filteredCount = detectorRef.current.applyPhase3Filtering(domainsToFilter);
+      
+      // Get updated results
+      const updatedResults = detectorRef.current.getCurrentDuplicates();
+      setResults(updatedResults);
+      
+      // Generate final report
+      const summary = detectorRef.current.getProcessingSummary();
+      setPhase3Report(summary);
+      
+      console.log('✅ Phase 3 complete. Filtered', filteredCount, 'emails');
+      console.log('📊 Final summary:', summary);
+      
+      setCurrentAppPhase('phase3_done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Phase 3 filtering failed');
+      setCurrentAppPhase('phase2_done');
+    }
+  }, []);
 
   const handleDownloadModifiedBasisFile = useCallback(async () => {
     if (!detectorRef.current) return;
@@ -156,7 +201,7 @@ function App() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className={`flex items-center space-x-2 ${
-                ['initial', 'processing_phase1', 'phase1_done'].includes(currentAppPhase) 
+                ['initial', 'processing_phase1', 'phase1_done', 'setup_phase2', 'processing_phase2', 'phase2_done', 'processing_phase3', 'phase3_done'].includes(currentAppPhase) 
                   ? 'text-blue-600' 
                   : 'text-gray-400'
               }`}>
@@ -174,7 +219,7 @@ function App() {
               <ArrowRight className="w-4 h-4 text-gray-400" />
               
               <div className={`flex items-center space-x-2 ${
-                ['setup_phase2', 'processing_phase2', 'phase2_done'].includes(currentAppPhase)
+                ['setup_phase2', 'processing_phase2', 'phase2_done', 'processing_phase3', 'phase3_done'].includes(currentAppPhase)
                   ? 'text-blue-600'
                   : 'text-gray-400'
               }`}>
@@ -188,6 +233,24 @@ function App() {
                 <span className="font-medium">Phase 2</span>
                 {currentAppPhase === 'phase2_done' && <CheckCircle className="w-4 h-4 text-green-500" />}
               </div>
+              
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+              
+              <div className={`flex items-center space-x-2 ${
+                ['processing_phase3', 'phase3_done'].includes(currentAppPhase)
+                  ? 'text-blue-600'
+                  : 'text-gray-400'
+              }`}>
+                <div className={`w-3 h-3 rounded-full ${
+                  currentAppPhase === 'phase3_done'
+                    ? 'bg-green-500'
+                    : currentAppPhase === 'processing_phase3'
+                      ? 'bg-blue-500'
+                      : 'bg-gray-300'
+                }`} />
+                <span className="font-medium">Phase 3</span>
+                {currentAppPhase === 'phase3_done' && <CheckCircle className="w-4 h-4 text-green-500" />}
+              </div>
             </div>
             
             <div className="text-sm text-gray-500">
@@ -197,6 +260,8 @@ function App() {
               {currentAppPhase === 'setup_phase2' && 'Setting up Phase 2'}
               {currentAppPhase === 'processing_phase2' && 'Processing Phase 2...'}
               {currentAppPhase === 'phase2_done' && 'Phase 2 Complete'}
+              {currentAppPhase === 'processing_phase3' && 'Processing Phase 3...'}
+              {currentAppPhase === 'phase3_done' && 'All Phases Complete'}
             </div>
           </div>
         </div>

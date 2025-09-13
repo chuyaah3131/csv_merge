@@ -41,6 +41,26 @@ export interface PerformanceMetrics {
   totalProcessingTime: number;
 }
 
+export interface ProcessingSummary {
+  phase1: {
+    initialBasisEmails: number;
+    duplicatesFound: number;
+    filesProcessed: number;
+  };
+  phase2: {
+    duplicatesFound: number;
+    filesProcessed: number;
+  };
+  phase3: {
+    emailsFiltered: number;
+    domainsFiltered: string[];
+  };
+  final: {
+    totalDuplicatesFound: number;
+    finalBasisEmails: number;
+    totalFilesProcessed: number;
+  };
+}
 export class CSVDuplicateDetector {
   private workerPool: WorkerPool;
   private emailIndex: Map<string, any[]> = new Map();
@@ -56,6 +76,15 @@ export class CSVDuplicateDetector {
   private pauseTime = 0;
   private totalPauseTime = 0;
 
+  // Phase tracking
+  private currentPhase: 'phase1' | 'phase2' | 'phase3' = 'phase1';
+  private phase1DuplicatesCount = 0;
+  private phase2DuplicatesCount = 0;
+  private phase3FilteredCount = 0;
+  private initialUniqueBasisEmails = 0;
+  private phase1FilesProcessed = 0;
+  private phase2FilesProcessed = 0;
+  private filteredDomains: string[] = [];
   // Callbacks
   public onProgress: ((progress: ProcessingProgress) => void) | null = null;
   public onPerformanceUpdate: ((metrics: PerformanceMetrics) => void) | null = null;
@@ -154,7 +183,6 @@ export class CSVDuplicateDetector {
       this.startTime = Date.now();
       this.totalPauseTime = 0;
       this.rowsProcessed = 0;
-      this.allDuplicates = [];
       this.totalRows = this.estimateTotalRows([basisFile, ...comparisonFiles]);
       
       // Store original basis file and column mapping for export
@@ -163,20 +191,35 @@ export class CSVDuplicateDetector {
 
       console.log('📈 Estimated total rows:', this.totalRows);
 
-      // Reset data structures
-      this.emailIndex.clear();
-      this.basisFileClientTypes.clear();
-      this.basisFileClientProspects.clear();
-      this.bloomFilter = new BloomFilter(100000, 0.01);
-      this.cache.clear();
-      console.log('🧹 Data structures reset');
+      // Only reset data structures if starting Phase 1
+      if (this.currentPhase === 'phase1') {
+        this.allDuplicates = [];
+        this.emailIndex.clear();
+        this.basisFileClientTypes.clear();
+        this.basisFileClientProspects.clear();
+        this.bloomFilter = new BloomFilter(100000, 0.01);
+        this.cache.clear();
+        this.phase1DuplicatesCount = 0;
+        this.phase2DuplicatesCount = 0;
+        this.phase3FilteredCount = 0;
+        this.initialUniqueBasisEmails = 0;
+        this.phase1FilesProcessed = 0;
+        this.phase2FilesProcessed = 0;
+        console.log('🧹 Data structures reset for Phase 1');
+      }
 
-      // Process basis file first
-      console.log('📁 Processing basis file:', basisFile.name);
-      const basisColumnMapping = this.getEffectiveColumnMapping(basisFile.name, defaultColumnMapping);
-      console.log('📋 Basis file column mapping:', basisColumnMapping);
-      await this.processBasisFile(basisFile, basisColumnMapping);
-      console.log('✅ Basis file processed. Email index size:', this.emailIndex.size);
+      // Process basis file first (only in Phase 1)
+      if (this.currentPhase === 'phase1') {
+        console.log('📁 Processing basis file:', basisFile.name);
+        const basisColumnMapping = this.getEffectiveColumnMapping(basisFile.name, defaultColumnMapping);
+        console.log('📋 Basis file column mapping:', basisColumnMapping);
+        await this.processBasisFile(basisFile, basisColumnMapping);
+        this.initialUniqueBasisEmails = this.emailIndex.size;
+        console.log('✅ Basis file processed. Email index size:', this.emailIndex.size);
+      }
+
+      // Track duplicates count before processing
+      const duplicatesBeforeProcessing = this.allDuplicates.length;
 
       // Process comparison files
       for (let i = 0; i < comparisonFiles.length; i++) {
@@ -186,7 +229,7 @@ export class CSVDuplicateDetector {
         const comparisonColumnMapping = this.getEffectiveColumnMapping(comparisonFiles[i].name, defaultColumnMapping);
         console.log(`📋 Comparison file ${i + 1} column mapping:`, comparisonColumnMapping);
         await this.processComparisonFile(comparisonFiles[i], i, comparisonColumnMapping);
-        console.log(`✅ Comparison file ${i + 1} processed. Total duplicates found so far:`, this.duplicatesFound);
+        console.log(`✅ Comparison file ${i + 1} processed. Total duplicates found so far:`, this.allDuplicates.length);
         
         // Trigger garbage collection hint every few files
         if (i % 3 === 0) {
@@ -194,6 +237,15 @@ export class CSVDuplicateDetector {
         }
       }
 
+      // Track phase-specific duplicate counts
+      const duplicatesFoundInThisPhase = this.allDuplicates.length - duplicatesBeforeProcessing;
+      if (this.currentPhase === 'phase1') {
+        this.phase1DuplicatesCount = duplicatesFoundInThisPhase;
+        this.phase1FilesProcessed = comparisonFiles.length;
+      } else if (this.currentPhase === 'phase2') {
+        this.phase2DuplicatesCount = duplicatesFoundInThisPhase;
+        this.phase2FilesProcessed = comparisonFiles.length;
+      }
       console.log('🎉 All files processed successfully');
       this.isProcessing = false;
       
@@ -556,6 +608,82 @@ export class CSVDuplicateDetector {
     this.isPaused = false;
   }
 
+  public setPhase(phase: 'phase1' | 'phase2' | 'phase3'): void {
+    this.currentPhase = phase;
+    console.log('🔄 Phase set to:', phase);
+  }
+
+  public applyPhase3Filtering(domainsToFilter: string[]): number {
+    console.log('🗑️ Starting Phase 3 filtering for domains:', domainsToFilter);
+    this.filteredDomains = [...domainsToFilter];
+    let filteredCount = 0;
+
+    // Normalize domains for comparison
+    const normalizedDomains = domainsToFilter.map(domain => domain.toLowerCase().trim());
+
+    // Filter email index
+    const emailsToRemove: string[] = [];
+    for (const [email, records] of this.emailIndex.entries()) {
+      const emailDomain = email.split('@')[1];
+      if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
+        emailsToRemove.push(email);
+        filteredCount++;
+      }
+    }
+
+    // Remove filtered emails from all data structures
+    for (const email of emailsToRemove) {
+      this.emailIndex.delete(email);
+      this.basisFileClientTypes.delete(email);
+      this.basisFileClientProspects.delete(email);
+    }
+
+    // Filter duplicates array
+    const originalDuplicatesCount = this.allDuplicates.length;
+    this.allDuplicates = this.allDuplicates.filter(duplicate => {
+      const emailDomain = duplicate.email.split('@')[1];
+      return !(emailDomain && normalizedDomains.includes(emailDomain.toLowerCase()));
+    });
+
+    const duplicatesFiltered = originalDuplicatesCount - this.allDuplicates.length;
+    this.phase3FilteredCount = filteredCount;
+
+    console.log(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesFiltered} duplicates`);
+    
+    // Emit updated results
+    if (this.onResults) {
+      this.onResults([...this.allDuplicates]);
+    }
+
+    return filteredCount;
+  }
+
+  public getCurrentDuplicates(): DuplicateResult[] {
+    return [...this.allDuplicates];
+  }
+
+  public getProcessingSummary(): ProcessingSummary {
+    return {
+      phase1: {
+        initialBasisEmails: this.initialUniqueBasisEmails,
+        duplicatesFound: this.phase1DuplicatesCount,
+        filesProcessed: this.phase1FilesProcessed
+      },
+      phase2: {
+        duplicatesFound: this.phase2DuplicatesCount,
+        filesProcessed: this.phase2FilesProcessed
+      },
+      phase3: {
+        emailsFiltered: this.phase3FilteredCount,
+        domainsFiltered: this.filteredDomains
+      },
+      final: {
+        totalDuplicatesFound: this.allDuplicates.length,
+        finalBasisEmails: this.emailIndex.size,
+        totalFilesProcessed: this.phase1FilesProcessed + this.phase2FilesProcessed
+      }
+    };
+  }
   public async exportModifiedBasisFile(): Promise<void> {
     if (!this.originalBasisFile || !this.currentColumnMapping) {
       throw new Error('No basis file or column mapping available for export');
