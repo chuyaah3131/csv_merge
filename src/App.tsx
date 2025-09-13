@@ -623,10 +623,10 @@ function App() {
             </div>
             
             {/* Debug Messages for Phase 3 Done */}
-            {phase3DebugMessages.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Phase 3 Processing Log</h3>
-                <div className="bg-gray-50 rounded border border-gray-300 p-3 max-h-96 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Phase 3 Processing Log</h3>
+              <div className="bg-gray-50 rounded border border-gray-300 p-3 max-h-96 overflow-y-auto">
+                {phase3DebugMessages.length > 0 ? (
                   <div className="space-y-1 font-mono text-sm">
                     {phase3DebugMessages.map((message, index) => (
                       <div 
@@ -643,9 +643,11 @@ function App() {
                       </div>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">No processing log available</div>
+                )}
               </div>
-            )}
+            </div>
 
             {performanceMetrics && <PerformanceMonitor metrics={performanceMetrics} />}
           </div>
