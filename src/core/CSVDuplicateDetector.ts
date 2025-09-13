@@ -639,13 +639,13 @@ export class CSVDuplicateDetector {
       
       // Filter the modified basis data by email domain
       const emailColumn = this.currentColumnMapping!.emailColumn;
-      const filteredBasisData: any[] = [];
       const removedEmails: string[] = [];
       let processedCount = 0;
       let debugRowCount = 0;
       const maxDebugRows = 50; // Limit detailed logging to first 50 rows
+      let emailsClearedCount = 0;
       
-      this.phase3LogMessages.push('🔍 Step 2: Filtering basis file data by email domain...');
+      this.phase3LogMessages.push('🔍 Step 2: Clearing email addresses that match filtered domains...');
       
       for (const row of modifiedBasisData) {
         processedCount++;
@@ -661,13 +661,15 @@ export class CSVDuplicateDetector {
           }
           
           if (emailDomain && normalizedDomains.includes(emailDomain.toLowerCase())) {
-            this.phase3LogMessages.push(`🗑️ REMOVING: ${email} (domain: ${emailDomain})`);
+            this.phase3LogMessages.push(`🧹 CLEARING: ${email} (domain: ${emailDomain})`);
             removedEmails.push(email);
+            // Clear the email address but keep the row
+            row[emailColumn] = '';
+            emailsClearedCount++;
           } else {
             if (debugRowCount < maxDebugRows) {
               this.phase3LogMessages.push(`✅ KEEPING: ${email} (domain: ${emailDomain})`);
             }
-            filteredBasisData.push(row);
           }
           
           if (debugRowCount < maxDebugRows) {
@@ -676,39 +678,41 @@ export class CSVDuplicateDetector {
         } else {
           // Keep rows without valid emails
           if (debugRowCount < maxDebugRows) {
-            this.phase3LogMessages.push(`⚠️ Row ${processedCount}: No valid email found, keeping row`);
+            this.phase3LogMessages.push(`⚠️ Row ${processedCount}: No valid email found, row unchanged`);
           }
-          filteredBasisData.push(row);
         }
         
         // Progress updates every 1000 rows
         if (processedCount % 1000 === 0) {
-          this.phase3LogMessages.push(`📊 Progress: ${processedCount}/${modifiedBasisData.length} rows processed, ${removedEmails.length} emails removed so far`);
+          this.phase3LogMessages.push(`📊 Progress: ${processedCount}/${modifiedBasisData.length} rows processed, ${emailsClearedCount} emails cleared so far`);
         }
       }
       
       // Store the final filtered data for export
-      this.finalFilteredBasisData = [...filteredBasisData];
+      this.finalFilteredBasisData = [...modifiedBasisData];
       
-      const filteredCount = removedEmails.length;
-      this.phase3LogMessages.push(`📊 FILTERING COMPLETE: Removed ${filteredCount} emails from basis file`);
-      this.phase3LogMessages.push(`📊 Remaining basis file rows: ${filteredBasisData.length}`);
+      this.phase3LogMessages.push(`📊 FILTERING COMPLETE: Cleared ${emailsClearedCount} email addresses from basis file`);
+      this.phase3LogMessages.push(`📊 Total basis file rows (unchanged): ${modifiedBasisData.length}`);
+      this.phase3LogMessages.push(`📊 Rows with cleared emails: ${emailsClearedCount}`);
       
       if (removedEmails.length > 0) {
-        this.phase3LogMessages.push(`🗑️ Sample removed emails: ${removedEmails.slice(0, 10).join(', ')}${removedEmails.length > 10 ? '...' : ''}`);
+        this.phase3LogMessages.push(`🧹 Sample cleared emails: ${removedEmails.slice(0, 10).join(', ')}${removedEmails.length > 10 ? '...' : ''}`);
       }
       
-      // Step 3: Rebuild email index from filtered basis data
-      this.phase3LogMessages.push('🏗️ Step 3: Rebuilding email index from filtered basis data...');
+      // Step 3: Rebuild email index from modified basis data (excluding cleared emails)
+      this.phase3LogMessages.push('🏗️ Step 3: Rebuilding email index from modified basis data (excluding cleared emails)...');
       this.emailIndex.clear();
       this.basisFileClientTypes.clear();
       this.basisFileClientProspects.clear();
       
-      for (let i = 0; i < filteredBasisData.length; i++) {
-        const row = filteredBasisData[i];
+      let validEmailsInIndex = 0;
+      for (let i = 0; i < modifiedBasisData.length; i++) {
+        const row = modifiedBasisData[i];
         const email = this.normalizeEmail(row[emailColumn]);
         
-        if (email) {
+        // Only add to index if email is not empty (not cleared)
+        if (email && email.trim() !== '') {
+          validEmailsInIndex++;
           let firstName, lastName;
           
           if (this.currentColumnMapping!.splitNameColumn && 
@@ -756,7 +760,7 @@ export class CSVDuplicateDetector {
         }
       }
       
-      this.phase3LogMessages.push(`✅ Email index rebuilt. Size: ${this.emailIndex.size}`);
+      this.phase3LogMessages.push(`✅ Email index rebuilt. Size: ${this.emailIndex.size} (from ${validEmailsInIndex} valid emails)`);
       
       // Step 4: Filter duplicates to maintain consistency
       this.phase3LogMessages.push('🔍 Step 4: Filtering duplicates to maintain consistency...');
@@ -767,19 +771,19 @@ export class CSVDuplicateDetector {
         const keepDuplicate = this.emailIndex.has(duplicate.email);
         
         if (!keepDuplicate) {
-          this.phase3LogMessages.push(`🗑️ Removing duplicate (no longer in basis): ${duplicate.email}`);
+          this.phase3LogMessages.push(`🧹 Removing duplicate (email was cleared from basis): ${duplicate.email}`);
         }
         
         return keepDuplicate;
       });
       
       const duplicatesRemoved = originalDuplicatesCount - this.allDuplicates.length;
-      this.phase3LogMessages.push(`📊 Removed ${duplicatesRemoved} duplicates (no longer in filtered basis)`);
+      this.phase3LogMessages.push(`📊 Removed ${duplicatesRemoved} duplicates (emails were cleared from basis)`);
       
       // Update phase 3 count
-      this.phase3FilteredCount = filteredCount;
+      this.phase3FilteredCount = emailsClearedCount;
       
-      this.phase3LogMessages.push(`✅ Phase 3 filtering complete. Filtered ${filteredCount} basis emails and ${duplicatesRemoved} duplicates`);
+      this.phase3LogMessages.push(`✅ Phase 3 filtering complete. Cleared ${emailsClearedCount} email addresses and removed ${duplicatesRemoved} duplicates`);
       this.phase3LogMessages.push(`📊 Final duplicates count: ${this.allDuplicates.length}`);
       this.phase3LogMessages.push(`📊 Final email index size: ${this.emailIndex.size}`);
       
@@ -788,7 +792,7 @@ export class CSVDuplicateDetector {
         this.onResults([...this.allDuplicates]);
       }
       
-      return filteredCount;
+      return emailsClearedCount;
       
     } catch (error) {
       this.phase3LogMessages.push(`❌ Error in Phase 3 filtering: ${error instanceof Error ? error.message : 'Unknown error'}`);

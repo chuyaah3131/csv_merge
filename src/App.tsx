@@ -484,7 +484,7 @@ function App() {
                   <div className="text-2xl font-bold text-red-600">
                     {phase3Report.phase3.emailsFiltered.toLocaleString()}
                   </div>
-                  <div className="text-sm text-red-800">Emails Removed</div>
+                  <div className="text-sm text-red-800">Email Addresses Cleared</div>
                 </div>
                 
                 <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
@@ -545,17 +545,17 @@ function App() {
                 <div className="bg-red-50 rounded-lg p-6 border border-red-200">
                   <h3 className="text-lg font-semibold text-red-900 mb-4">Phase 3: Removing Emails by Domain</h3>
                   <p className="text-sm text-red-700 mb-4">
-                    This phase removes email entries from the "email" column that match the specified domains (e.g., name@ccm.com, name@myccmortgage.com).
+                    This phase clears email addresses that match the specified domains while keeping the entire row intact (e.g., name@ccm.com, name@myccmortgage.com).
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <div className="text-2xl font-bold text-red-700">
                         {phase3Report.phase3.emailsFiltered.toLocaleString()}
                       </div>
-                      <div className="text-sm text-red-600">Emails Removed</div>
+                      <div className="text-sm text-red-600">Email Addresses Cleared</div>
                     </div>
                     <div>
-                      <div className="text-sm text-red-600 mb-2">Removed Domains:</div>
+                      <div className="text-sm text-red-600 mb-2">Cleared Domains:</div>
                       <div className="flex flex-wrap gap-2">
                         {phase3Report.phase3.domainsFiltered.map((domain: string, index: number) => (
                           <span
