@@ -297,6 +297,56 @@ function mapGroupCToClientProspects(groupCValue) {
   return 'Other Partner';
 }
 
+// Second layer standardization for VIP Status (Phase 1)
+function standardizeVipStatus(vipStatus) {
+  if (!vipStatus || typeof vipStatus !== 'string') return '';
+  
+  const normalizedStatus = vipStatus.trim();
+  
+  switch (normalizedStatus) {
+    case 'Customer':
+      return 'customer';
+    case 'VIP Client':
+      return 'vip_client';
+    case 'Customer, Realtor':
+      return 'customer_realtor';
+    case 'Customer, Realtor, Other Partner':
+      return 'customer_realtor_other_partner';
+    case 'VIP Client, Financial Planner':
+      return 'vip_client_financial_planner';
+    case 'Customer, Other Partner':
+      return 'customer_other_partner';
+    default:
+      return normalizedStatus; // Return original if no match
+  }
+}
+
+// Second layer standardization for Prospect Status (Phase 2)
+function standardizeProspectStatus(prospectStatus) {
+  if (!prospectStatus || typeof prospectStatus !== 'string') return '';
+  
+  const normalizedStatus = prospectStatus.trim();
+  
+  switch (normalizedStatus) {
+    case 'Prospect':
+      return 'prospect';
+    case 'Customer':
+      return 'customer';
+    case 'Realtor':
+      return 'realtor';
+    case 'Financial Planner':
+      return 'financial_planner';
+    case 'CPA':
+      return 'cpa';
+    case 'Other Partner':
+      return 'other_partner';
+    case 'Personal':
+      return 'personal';
+    default:
+      return normalizedStatus; // Return original if no match
+  }
+}
+
 // Build email index from chunk
 async function buildEmailIndex(chunk, sourceFile, columnMapping) {
   console.log('🏗️ Worker: Building email index, chunk size:', chunk.length, 'mapping:', columnMapping);
@@ -404,14 +454,16 @@ async function findDuplicates(chunk, emailIndex, sourceFile, columnMapping) {
       let clientTypeProspects;
       if (groupsColumn && row[groupsColumn]) {
         if (groupsColumn.toLowerCase() === 'groups') {
-          clientTypeVipStatus = mapGroupsToClientType(row[groupsColumn]);
+          const mappedVipStatus = mapGroupsToClientType(row[groupsColumn]);
+          clientTypeVipStatus = standardizeVipStatus(mappedVipStatus);
           if (debugCount < 5) {
-            console.log(`🔍 Debug ${debugCount + 1}: Groups value: "${row[groupsColumn]}" mapped to: "${clientTypeVipStatus}"`);
+            console.log(`🔍 Debug ${debugCount + 1}: Groups value: "${row[groupsColumn]}" mapped to: "${mappedVipStatus}" standardized to: "${clientTypeVipStatus}"`);
           }
         } else if (groupsColumn.toLowerCase() === 'group c') {
-          clientTypeProspects = mapGroupCToClientProspects(row[groupsColumn]);
+          const mappedProspectStatus = mapGroupCToClientProspects(row[groupsColumn]);
+          clientTypeProspects = standardizeProspectStatus(mappedProspectStatus);
           if (debugCount < 5) {
-            console.log(`🔍 Debug ${debugCount + 1}: Group c value: "${row[groupsColumn]}" mapped to: "${clientTypeProspects}"`);
+            console.log(`🔍 Debug ${debugCount + 1}: Group c value: "${row[groupsColumn]}" mapped to: "${mappedProspectStatus}" standardized to: "${clientTypeProspects}"`);
           }
         }
       }

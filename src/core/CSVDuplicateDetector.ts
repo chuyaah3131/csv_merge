@@ -951,11 +951,24 @@ export class CSVDuplicateDetector {
       const clientType = this.basisFileClientTypes.get(email) || '';
       const clientProspects = this.basisFileClientProspects.get(email) || '';
       
-      return {
-        ...row,
-        client_type_vip_status: clientType,
-        client_type_prospects: clientProspects
-      };
+      // Update existing columns or add new ones
+      const updatedRow = { ...row };
+      
+      // Update client_type_vip_status column (existing or new)
+      if (clientType) {
+        updatedRow.client_type_vip_status = clientType;
+      } else if (!updatedRow.hasOwnProperty('client_type_vip_status')) {
+        updatedRow.client_type_vip_status = '';
+      }
+      
+      // Update client_type_prospects column (existing or new)
+      if (clientProspects) {
+        updatedRow.client_type_prospects = clientProspects;
+      } else if (!updatedRow.hasOwnProperty('client_type_prospects')) {
+        updatedRow.client_type_prospects = '';
+      }
+      
+      return updatedRow;
     });
   }
   
