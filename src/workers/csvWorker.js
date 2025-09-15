@@ -38,43 +38,72 @@ function calculateSimilarity(str1, str2) {
 function mapGroupsToClientType(groupsValue) {
   if (!groupsValue || typeof groupsValue !== 'string') return 'Other';
   
-  const normalizedValue = groupsValue.toLowerCase().trim();
-  
-  // Comprehensive mapping based on the provided rules
   const upperValue = groupsValue.toUpperCase().trim();
   
-  // Direct matches first (most specific)
-  if (upperValue === 'CUSTOMER') {
-    return 'Customer';
-  }
-  
+  // VIP Client Mappings
   if (upperValue === 'CUSTOMER, VIP CLIENT' || upperValue === 'VIP CLIENT, CUSTOMER') {
     return 'VIP Client';
   }
   
-  if (upperValue === 'PROSPECT, CUSTOMER') {
-    return 'Customer';
-  }
-  
-  if (upperValue === 'CUSTOMER, BUYER AGENT, REALTOR' || upperValue === 'REALTOR, CUSTOMER, BUYER AGENT') {
-    return 'Customer, Realtor';
-  }
-  
-  if (upperValue === 'PROSPECT, LEAD, VIP CLIENT, CUSTOMER' || 
-      upperValue === 'PROSPECT, VIP CLIENT, CUSTOMER' ||
-      upperValue === 'PROSPECT, CUSTOMER, VIP CLIENT') {
+  if (upperValue === 'PROSPECT, LEAD, VIP CLIENT, CUSTOMER') {
     return 'VIP Client';
   }
   
-  if (upperValue === 'CUSTOMER, REALTOR, BUSINESS') {
-    return 'Customer, Realtor, Other Partner';
+  if (upperValue === 'PROSPECT, VIP CLIENT, CUSTOMER') {
+    return 'VIP Client';
   }
   
   if (upperValue === 'OTHER, VIP CLIENT, CUSTOMER') {
     return 'VIP Client';
   }
   
+  if (upperValue === 'PROSPECT, CUSTOMER, VIP CLIENT') {
+    return 'VIP Client';
+  }
+  
+  if (upperValue === 'CUSTOMER, BUYER AGENT, REALTOR, VIP CLIENT') {
+    return 'VIP Client';
+  }
+  
+  if (upperValue === 'CUSTOMER, MARKETPLACE-LEADS-PURCHASE, JOURNEY: HOT LEADS (PURCHASE), VIP CLIENT') {
+    return 'VIP Client';
+  }
+  
+  if (upperValue === 'CUSTOMER, REALTOR, VIP CLIENT') {
+    return 'VIP Client';
+  }
+  
+  if (upperValue === 'LEAD, CUSTOMER, VIP CLIENT') {
+    return 'VIP Client';
+  }
+  
+  // VIP Client + Financial Planner
+  if (upperValue === 'CUSTOMER, VIP CLIENT, FINANCIAL PLANNER') {
+    return 'VIP Client, Financial Planner';
+  }
+  
+  // Customer Only Mappings
+  if (upperValue === 'CUSTOMER') {
+    return 'Customer';
+  }
+  
+  if (upperValue === 'PROSPECT, CUSTOMER') {
+    return 'Customer';
+  }
+  
+  if (upperValue === 'CUSTOMER, PROSPECT') {
+    return 'Customer';
+  }
+  
   if (upperValue === 'LEAD, CUSTOMER') {
+    return 'Customer';
+  }
+  
+  if (upperValue === 'CUSTOMER, LEAD') {
+    return 'Customer';
+  }
+  
+  if (upperValue === 'PROSPECT, CUSTOMER, LEAD') {
     return 'Customer';
   }
   
@@ -82,56 +111,55 @@ function mapGroupsToClientType(groupsValue) {
     return 'Customer';
   }
   
-  if (upperValue === 'REFERRALPARTNER, CUSTOMER, MARKETPLACE-LEADS-PURCHASE, JOURNEY: HOT LEADS (PURCHASE)') {
-    return 'Customer, Other Partner';
-  }
-  
   if (upperValue === 'CUSTOMER, MARKETPLACE-LEADS-REFINANCE, JOURNEY: HOT LEADS (REFI)') {
     return 'Customer';
   }
   
-  if (upperValue === 'CUSTOMER, LEAD, BUYER AGENT, REALTOR') {
+  // Customer + Realtor Mappings
+  if (upperValue === 'CUSTOMER, BUYER AGENT, REALTOR') {
     return 'Customer, Realtor';
   }
   
-  if (upperValue === 'CUSTOMER, PROSPECT') {
-    return 'Customer';
+  if (upperValue === 'REALTOR, CUSTOMER, BUYER AGENT') {
+    return 'Customer, Realtor';
   }
   
-  if (upperValue === 'CUSTOMER, VIP CLIENT, FINANCIAL PLANNER') {
-    return 'VIP Client, Financial Planner';
-  }
-  
-  if (upperValue === 'CUSTOMER, LEAD') {
-    return 'Customer';
+  if (upperValue === 'BUYER AGENT, REALTOR, CUSTOMER') {
+    return 'Customer, Realtor';
   }
   
   if (upperValue === 'BUYER AGENT, REALTOR, CUSTOMER, PROSPECT') {
     return 'Customer, Realtor';
   }
   
-  // Fallback pattern matching for variations
-  if (upperValue.includes('VIP CLIENT') || upperValue.includes('VIP')) {
-    return 'VIP Client';
+  if (upperValue === 'CUSTOMER, LEAD, BUYER AGENT, REALTOR') {
+    return 'Customer, Realtor';
   }
   
-  if (upperValue.includes('FINANCIAL PLANNER')) {
-    return 'Financial Planner';
+  if (upperValue === 'CUSTOMER, BUYER AGENT, REALTOR, SELLER AGENT') {
+    return 'Customer, Realtor';
   }
   
-  if (upperValue.includes('REALTOR') || upperValue.includes('BUYER AGENT')) {
-    if (upperValue.includes('CUSTOMER')) {
-      return 'Customer, Realtor';
-    }
-    return 'Realtor';
+  if (upperValue === 'BUYER AGENT, REALTOR, CUSTOMER, SELLER AGENT') {
+    return 'Customer, Realtor';
   }
   
-  if (upperValue.includes('CUSTOMER')) {
-    return 'Customer';
+  if (upperValue === 'CUSTOMER, BUYER AGENT, REALTOR, FAMILY/FRIEND') {
+    return 'Customer, Realtor';
   }
   
-  if (upperValue.includes('REFERRALPARTNER') || upperValue.includes('PARTNER')) {
-    return 'Other Partner';
+  if (upperValue === 'CUSTOMER, REALTOR') {
+    return 'Customer, Realtor';
+  }
+  
+  // Customer + Realtor + Other Partner
+  if (upperValue === 'CUSTOMER, REALTOR, BUSINESS') {
+    return 'Customer, Realtor, Other Partner';
+  }
+  
+  // Customer + Other Partner
+  if (upperValue === 'REFERRALPARTNER, CUSTOMER, MARKETPLACE-LEADS-PURCHASE, JOURNEY: HOT LEADS (PURCHASE)') {
+    return 'Customer, Other Partner';
   }
   
   // Default to Other
@@ -144,51 +172,129 @@ function mapGroupCToClientProspects(groupCValue) {
   
   const normalizedValue = groupCValue.trim();
   
-  // Direct mapping based on the provided rules
-  switch (normalizedValue) {
-    case 'Vendor':
-      return 'Other Partner';
-    case 'Client':
-      return 'Customer';
-    case 'Mortgage Contact':
-      return 'Other Partner';
-    case 'Realtor':
-      return 'Realtor';
-    case 'Lead':
-      return 'Prospect';
-    case 'Financial Planner':
-      return 'Financial Planner';
-    case 'Business':
-      return 'Other Partner';
-    case 'Inspector':
-      return 'Other Partner';
-    case 'CoWorker':
-      return 'Personal';
-    case 'Prospect':
-      return 'Prospect';
-    case 'Business;Realtor':
-      return 'Realtor';
-    case 'Client;Prospect':
-      return 'Prospect';
-    case 'Title Agent':
-      return 'Other Partner';
-    case 'Escrow Agent':
-      return 'Other Partner';
-    case 'Other':
-      return 'Other Partner';
-    case 'Assistant':
-      return 'Other Partner';
-    case 'Loan Rep':
-      return 'Other Partner';
-    case 'Developer':
-      return 'Other Partner';
-    case 'CPA':
-      return 'CPA';
-    case 'Builder':
-      return 'Other Partner';
-    default:
-      return 'Other Partner';
+  // Prospect/Lead/Customer Mappings
+  if (normalizedValue === 'Prospect') {
+    return 'Prospect';
   }
+  
+  if (normalizedValue === 'Lead') {
+    return 'Prospect';
+  }
+  
+  if (normalizedValue === 'Client') {
+    return 'Customer';
+  }
+  
+  if (normalizedValue === 'Client;Lead') {
+    return 'Prospect'; // Active lead takes priority
+  }
+  
+  if (normalizedValue === 'Client;Prospect') {
+    return 'Prospect'; // Active prospect takes priority
+  }
+  
+  if (normalizedValue === 'Lead;Prospect') {
+    return 'Prospect';
+  }
+  
+  if (normalizedValue === 'Friend;Lead') {
+    return 'Prospect'; // Lead status takes priority
+  }
+  
+  // Professional Services
+  if (normalizedValue === 'Realtor') {
+    return 'Realtor';
+  }
+  
+  if (normalizedValue === 'Client;Realtor') {
+    return 'Realtor'; // Professional role takes priority
+  }
+  
+  if (normalizedValue === 'Business;Realtor') {
+    return 'Realtor'; // Realtor takes priority
+  }
+  
+  if (normalizedValue === 'CPA') {
+    return 'CPA';
+  }
+  
+  if (normalizedValue === 'Financial Planner') {
+    return 'Financial Planner';
+  }
+  
+  if (normalizedValue === 'Attorney') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Appraiser') {
+    return 'Other Partner';
+  }
+  
+  // Real Estate Related Partners
+  if (normalizedValue === 'Escrow Agent') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Title Agent') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Inspector') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Mortgage Contact') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Loan Rep') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Developer') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Builder') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Vendor') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Landlord') {
+    return 'Other Partner';
+  }
+  
+  // Personal/Internal
+  if (normalizedValue === 'CoWorker') {
+    return 'Personal';
+  }
+  
+  if (normalizedValue === 'Friend') {
+    return 'Personal';
+  }
+  
+  if (normalizedValue === 'Family') {
+    return 'Personal';
+  }
+  
+  // Generic/Other
+  if (normalizedValue === 'Business') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Other') {
+    return 'Other Partner';
+  }
+  
+  if (normalizedValue === 'Assistant') {
+    return 'Other Partner';
+  }
+  
+  // Default
+  return 'Other Partner';
 }
 
 // Build email index from chunk
